@@ -15,11 +15,15 @@ GERRIT_IMAGE_NAME=${GERRIT_IMAGE_NAME:-openfrontier/gerrit}
 POSTGRES_IMAGE=${POSTGRES_IMAGE:-postgres}
 CI_NETWORK=${CI_NETWORK:-ci-network}
 
+# Create PostgreSQL volume.
+docker volume create --name ${PG_GERRIT_NAME}-volume
+
 # Start PostgreSQL.
 docker run \
 --name ${PG_GERRIT_NAME} \
 --net ${CI_NETWORK} \
 -P \
+-v ${PG_GERRIT_NAME}-volume:/var/lib/postgresql/data \
 -e POSTGRES_USER=gerrit2 \
 -e POSTGRES_PASSWORD=gerrit \
 -e POSTGRES_DB=reviewdb \
@@ -31,17 +35,14 @@ while [ -z "$(docker logs ${PG_GERRIT_NAME} 2>&1 | grep 'autovacuum launcher sta
 done
 
 # Create Gerrit volume.
-docker run \
---name ${GERRIT_VOLUME} \
-${GERRIT_IMAGE_NAME} \
-echo "Create Gerrit volume."
+docker volume create --name ${GERRIT_VOLUME}
 
 # Start Gerrit.
 docker run \
 --name ${GERRIT_NAME} \
 --net ${CI_NETWORK} \
 -p 29418:29418 \
---volumes-from ${GERRIT_VOLUME} \
+-v ${GERRIT_VOLUME}:/var/gerrit/review_site \
 -e WEBURL=${GERRIT_WEBURL} \
 -e HTTPD_LISTENURL=${HTTPD_LISTENURL} \
 -e DATABASE_TYPE=postgresql \
